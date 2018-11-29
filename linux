@@ -1,0 +1,27 @@
+---
+- hosts: all
+  name: Check available updates
+  any_errors_fatal: true
+  become: yes
+  gather_facts: true
+  tasks:
+  - name: Check for available updates
+    script: available_updates.sh
+  - name: Download results
+    fetch:
+      src: "/home/ansible/available_updates_{{ ansible_fqdn | lower | regex_replace('[.]RXID.*') }}_{{ lookup('pipe', 'date +%F') }}.csv"
+      dest: "available_updates_{{ ansible_fqdn | lower | regex_replace('[.]RXID.*') }}_{{ lookup('pipe', 'date +%F') }}.csv"
+      fail_on_missing: yes
+      flat: yes
+    register: downl_file
+  - find:
+      paths: "/home/ansible"
+      patterns: "available_updates_*.csv,temp_yum"
+    register: available_updates_files
+  - name: Cleanup 
+    file:
+      path: "{{ item.path }}"
+      state: absent
+    with_items: 
+      - "{{ available_updates_files.files }}"
+    when: downl_file|succeeded
